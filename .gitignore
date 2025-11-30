@@ -1,0 +1,28 @@
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+*.xcuserdatad/
+*.xcworkspace/xcuserdata/
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+xcuserdata/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Logs
+*.log
+
+# Archives
+*.xcarchive
+
+# Temporary files
+*.swp
+*.swo
+*~
