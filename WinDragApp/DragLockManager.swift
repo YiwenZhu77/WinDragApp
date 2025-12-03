@@ -29,7 +29,9 @@ final class DragLockManager {
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var doubleTapTimer: Timer?
+    private var liftDelayTimer: Timer?
     private var lastMoveLocation: CGPoint = .zero
+    private var lastMoveTime: TimeInterval = 0
     
     // Flags to ignore synthetic events we create
     private var ignoreNextMouseDown = false
@@ -42,6 +44,12 @@ final class DragLockManager {
     
     /// Time window for double-tap detection (seconds)
     var doubleTapWindow: TimeInterval = 0.5
+    
+    /// How to stop dragging
+    var stopMode: StopMode = .tapAgain
+    
+    /// Delay before stopping drag after finger lifts (seconds)
+    var liftDelay: TimeInterval = 0.5
     
     /// Maximum distance between taps (points)
     private let maxTapDistance: CGFloat = 50.0
@@ -102,6 +110,8 @@ final class DragLockManager {
     func stop() {
         doubleTapTimer?.invalidate()
         doubleTapTimer = nil
+        liftDelayTimer?.invalidate()
+        liftDelayTimer = nil
         
         if let tap = eventTap {
             CGEvent.tapEnable(tap: tap, enable: false)
@@ -190,8 +200,10 @@ final class DragLockManager {
             }
             
         case .dragging:
-            // Tap while dragging = end drag
-            endDrag(at: location)
+            // Tap while dragging = end drag (only if stopMode is tapAgain)
+            if stopMode == .tapAgain {
+                endDrag(at: location)
+            }
             return Unmanaged.passRetained(event)
         }
     }
@@ -255,6 +267,13 @@ final class DragLockManager {
         case .dragging:
             // Convert mouseMoved to drag event
             lastMoveLocation = location
+            lastMoveTime = time
+            
+            // Reset lift delay timer on movement (delay mode only)
+            if stopMode == .delayTime {
+                startLiftDelayTimer()
+            }
+            
             return createDragEvent(from: event, at: location)
         }
     }
@@ -312,6 +331,14 @@ final class DragLockManager {
         doubleTapTimer = Timer.scheduledTimer(withTimeInterval: doubleTapWindow, repeats: false) { [weak self] _ in
             self?.state = .idle
             self?.lastClickWasFromMouse = false
+        }
+    }
+    
+    private func startLiftDelayTimer() {
+        liftDelayTimer?.invalidate()
+        liftDelayTimer = Timer.scheduledTimer(withTimeInterval: liftDelay, repeats: false) { [weak self] _ in
+            guard let self = self, case .dragging = self.state else { return }
+            self.endDrag(at: self.lastMoveLocation)
         }
     }
 }

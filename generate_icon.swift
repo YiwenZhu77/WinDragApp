@@ -2,7 +2,7 @@
 
 import Cocoa
 
-// Generate app icon with "Double" text and "Tap" inside the box
+// Generate app icon with "Win" and "Drag" text inside the box
 func generateAppIcon(size: Int, outputPath: String) {
     // Create bitmap representation at exact pixel size (1x scale)
     let rep = NSBitmapImageRep(
@@ -40,10 +40,10 @@ func generateAppIcon(size: Int, outputPath: String) {
     shadow.shadowOffset = NSSize(width: 0, height: -s * 0.015)
     shadow.shadowBlurRadius = s * 0.02
     
-    // Draw "Double" text inside the box (upper)
-    let fontSize = s * 0.26
+    // Draw "Win" text inside the box (upper)
+    let fontSize = s * 0.32
     let font = NSFont.systemFont(ofSize: fontSize, weight: .bold)
-    let text = "Double"
+    let text = "Win"
     let textAttrsWithShadow: [NSAttributedString.Key: Any] = [
         .font: font,
         .foregroundColor: NSColor.white,
@@ -54,10 +54,10 @@ func generateAppIcon(size: Int, outputPath: String) {
     let textY = s * 0.52
     text.draw(at: NSPoint(x: textX, y: textY), withAttributes: textAttrsWithShadow)
     
-    // "Tap" text inside the box (lower)
-    let tapFontSize = s * 0.26
+    // "Drag" text inside the box (lower)
+    let tapFontSize = s * 0.32
     let tapFont = NSFont.systemFont(ofSize: tapFontSize, weight: .bold)
-    let tapText = "Tap"
+    let tapText = "Drag"
     let tapAttrs: [NSAttributedString.Key: Any] = [
         .font: tapFont,
         .foregroundColor: NSColor.white,
@@ -96,11 +96,11 @@ func generateMenuBarIcon(size: Int, outputPath: String) {
     
     let s = CGFloat(size)
     
-    // Draw "2×" in black (template mode) - smaller size
-    let fontSize = s * 0.5
+    // Draw "WD" in black (template mode)
+    let fontSize = s * 0.45
     let font = NSFont.systemFont(ofSize: fontSize, weight: .medium)
     
-    let text = "2×"
+    let text = "WD"
     let textAttrs: [NSAttributedString.Key: Any] = [
         .font: font,
         .foregroundColor: NSColor.black

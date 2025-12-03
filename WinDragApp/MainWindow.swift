@@ -5,11 +5,16 @@ final class MainWindowController: NSWindowController {
     
     private var enabledCheckbox: NSButton!
     private var doubleTapTextField: NSTextField!
+    private var tapAgainRadio: NSButton!
+    private var delayTimeRadio: NSButton!
+    private var liftDelayTextField: NSTextField!
+    private var liftDelayLabel: NSTextField!
+    private var liftDelayMsLabel: NSTextField!
     private var statusLabel: NSTextField!
     
     convenience init() {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 380, height: 280),
+            contentRect: NSRect(x: 0, y: 0, width: 380, height: 360),
             styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false
@@ -68,6 +73,47 @@ final class MainWindowController: NSWindowController {
         msLabel.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(msLabel)
         
+        // Stop mode section
+        let stopModeLabel = NSTextField(labelWithString: "Stop Dragging:")
+        stopModeLabel.font = NSFont.systemFont(ofSize: 12, weight: .medium)
+        stopModeLabel.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(stopModeLabel)
+        
+        tapAgainRadio = NSButton(radioButtonWithTitle: "Tap again to stop", target: self, action: #selector(stopModeChanged(_:)))
+        tapAgainRadio.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(tapAgainRadio)
+        
+        delayTimeRadio = NSButton(radioButtonWithTitle: "Stop after delay when finger lifts", target: self, action: #selector(stopModeChanged(_:)))
+        delayTimeRadio.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(delayTimeRadio)
+        
+        // Set initial radio state
+        if Settings.shared.stopMode == .tapAgain {
+            tapAgainRadio.state = .on
+            delayTimeRadio.state = .off
+        } else {
+            tapAgainRadio.state = .off
+            delayTimeRadio.state = .on
+        }
+        
+        // Lift delay controls
+        liftDelayLabel = NSTextField(labelWithString: "Lift Delay:")
+        liftDelayLabel.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(liftDelayLabel)
+        
+        liftDelayTextField = NSTextField(string: "\(Int(Settings.shared.liftDelay * 1000))")
+        liftDelayTextField.translatesAutoresizingMaskIntoConstraints = false
+        liftDelayTextField.alignment = .center
+        liftDelayTextField.delegate = self
+        liftDelayTextField.tag = 1  // Tag to identify in delegate
+        contentView.addSubview(liftDelayTextField)
+        
+        liftDelayMsLabel = NSTextField(labelWithString: "ms (100-2000)")
+        liftDelayMsLabel.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(liftDelayMsLabel)
+        
+        updateLiftDelayEnabled()
+        
         // Status label
         statusLabel = NSTextField(labelWithString: "")
         statusLabel.font = NSFont.systemFont(ofSize: 11)
@@ -117,7 +163,26 @@ final class MainWindowController: NSWindowController {
             msLabel.centerYAnchor.constraint(equalTo: doubleTapLabel.centerYAnchor),
             msLabel.leadingAnchor.constraint(equalTo: doubleTapTextField.trailingAnchor, constant: 8),
             
-            statusLabel.topAnchor.constraint(equalTo: doubleTapLabel.bottomAnchor, constant: 16),
+            stopModeLabel.topAnchor.constraint(equalTo: doubleTapLabel.bottomAnchor, constant: 20),
+            stopModeLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
+            
+            tapAgainRadio.topAnchor.constraint(equalTo: stopModeLabel.bottomAnchor, constant: 8),
+            tapAgainRadio.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 32),
+            
+            delayTimeRadio.topAnchor.constraint(equalTo: tapAgainRadio.bottomAnchor, constant: 4),
+            delayTimeRadio.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 32),
+            
+            liftDelayLabel.topAnchor.constraint(equalTo: delayTimeRadio.bottomAnchor, constant: 8),
+            liftDelayLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 48),
+            
+            liftDelayTextField.centerYAnchor.constraint(equalTo: liftDelayLabel.centerYAnchor),
+            liftDelayTextField.leadingAnchor.constraint(equalTo: liftDelayLabel.trailingAnchor, constant: 8),
+            liftDelayTextField.widthAnchor.constraint(equalToConstant: 60),
+            
+            liftDelayMsLabel.centerYAnchor.constraint(equalTo: liftDelayLabel.centerYAnchor),
+            liftDelayMsLabel.leadingAnchor.constraint(equalTo: liftDelayTextField.trailingAnchor, constant: 8),
+            
+            statusLabel.topAnchor.constraint(equalTo: liftDelayLabel.bottomAnchor, constant: 16),
             statusLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
             
             instructionsLabel.topAnchor.constraint(equalTo: statusLabel.bottomAnchor, constant: 16),
@@ -134,6 +199,27 @@ final class MainWindowController: NSWindowController {
         statusLabel.stringValue = Settings.shared.isEnabled ? "Status: ✅ Enabled" : "Status: ⏸ Disabled"
     }
     
+    private func updateLiftDelayEnabled() {
+        let enabled = Settings.shared.stopMode == .delayTime
+        liftDelayLabel.textColor = enabled ? .labelColor : .disabledControlTextColor
+        liftDelayTextField.isEnabled = enabled
+        liftDelayMsLabel.textColor = enabled ? .labelColor : .disabledControlTextColor
+    }
+    
+    @objc private func stopModeChanged(_ sender: NSButton) {
+        if sender == tapAgainRadio {
+            Settings.shared.stopMode = .tapAgain
+            tapAgainRadio.state = .on
+            delayTimeRadio.state = .off
+        } else {
+            Settings.shared.stopMode = .delayTime
+            tapAgainRadio.state = .off
+            delayTimeRadio.state = .on
+        }
+        DragLockManager.shared.stopMode = Settings.shared.stopMode
+        updateLiftDelayEnabled()
+    }
+    
     @objc private func toggleEnabled(_ sender: NSButton) {
         let wantEnabled = sender.state == .on
         
@@ -148,6 +234,8 @@ final class MainWindowController: NSWindowController {
         
         if wantEnabled {
             DragLockManager.shared.doubleTapWindow = Settings.shared.doubleTapWindow
+            DragLockManager.shared.stopMode = Settings.shared.stopMode
+            DragLockManager.shared.liftDelay = Settings.shared.liftDelay
             DragLockManager.shared.start()
         } else {
             DragLockManager.shared.stop()
@@ -166,6 +254,15 @@ final class MainWindowController: NSWindowController {
     @objc private func settingsChanged() {
         enabledCheckbox.state = Settings.shared.isEnabled ? .on : .off
         doubleTapTextField.stringValue = "\(Int(Settings.shared.doubleTapWindow * 1000))"
+        liftDelayTextField.stringValue = "\(Int(Settings.shared.liftDelay * 1000))"
+        if Settings.shared.stopMode == .tapAgain {
+            tapAgainRadio.state = .on
+            delayTimeRadio.state = .off
+        } else {
+            tapAgainRadio.state = .off
+            delayTimeRadio.state = .on
+        }
+        updateLiftDelayEnabled()
         updateStatusLabel()
     }
 }
@@ -176,11 +273,20 @@ extension MainWindowController: NSTextFieldDelegate {
     func controlTextDidEndEditing(_ obj: Notification) {
         guard let textField = obj.object as? NSTextField else { return }
         
-        let value = Int(textField.stringValue) ?? 500
-        let clamped = max(100, min(1000, value))
-        textField.stringValue = "\(clamped)"
-        
-        Settings.shared.doubleTapWindow = TimeInterval(clamped) / 1000.0
-        DragLockManager.shared.doubleTapWindow = Settings.shared.doubleTapWindow
+        if textField == doubleTapTextField {
+            let value = Int(textField.stringValue) ?? 500
+            let clamped = max(100, min(1000, value))
+            textField.stringValue = "\(clamped)"
+            
+            Settings.shared.doubleTapWindow = TimeInterval(clamped) / 1000.0
+            DragLockManager.shared.doubleTapWindow = Settings.shared.doubleTapWindow
+        } else if textField == liftDelayTextField {
+            let value = Int(textField.stringValue) ?? 500
+            let clamped = max(100, min(2000, value))
+            textField.stringValue = "\(clamped)"
+            
+            Settings.shared.liftDelay = TimeInterval(clamped) / 1000.0
+            DragLockManager.shared.liftDelay = Settings.shared.liftDelay
+        }
     }
 }
